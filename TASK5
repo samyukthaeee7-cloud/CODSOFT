@@ -1,0 +1,262 @@
+import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
+
+class Student {
+    private String name;
+    private String rollNumber;
+    private String grade;
+
+    public Student(String name, String rollNumber, String grade) {
+        this.name = name;
+        this.rollNumber = rollNumber;
+        this.grade = grade;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getRollNumber() {
+        return rollNumber;
+    }
+
+    public String getGrade() {
+        return grade;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setGrade(String grade) {
+        this.grade = grade;
+    }
+
+    @Override
+    public String toString() {
+        return "Roll No: " + rollNumber + " | Name: " + name + " | Grade: " + grade;
+    }
+
+    public String toFileFormat() {
+        return rollNumber + "," + name + "," + grade;
+    }
+
+    public static Student fromFileFormat(String line) {
+        String[] parts = line.split(",");
+        if (parts.length != 3) return null;
+        return new Student(parts[1], parts[0], parts[2]);
+    }
+}
+
+class StudentManagementSystem {
+    private List<Student> students;
+    private static final String FILE_NAME = "students.txt";
+
+    public StudentManagementSystem() {
+        students = new ArrayList<>();
+        loadFromFile();
+    }
+
+    public boolean addStudent(String name, String rollNumber, String grade) {
+        if (name == null || name.trim().isEmpty() ||
+                rollNumber == null || rollNumber.trim().isEmpty()) {
+            System.out.println("Name and roll number cannot be empty.");
+            return false;
+        }
+        if (findByRollNumber(rollNumber) != null) {
+            System.out.println("A student with this roll number already exists.");
+            return false;
+        }
+        students.add(new Student(name, rollNumber, grade));
+        saveToFile();
+        return true;
+    }
+
+    public boolean removeStudent(String rollNumber) {
+        Student student = findByRollNumber(rollNumber);
+        if (student == null) {
+            System.out.println("Student not found.");
+            return false;
+        }
+        students.remove(student);
+        saveToFile();
+        return true;
+    }
+
+    public Student findByRollNumber(String rollNumber) {
+        for (Student s : students) {
+            if (s.getRollNumber().equalsIgnoreCase(rollNumber)) {
+                return s;
+            }
+        }
+        return null;
+    }
+
+    public boolean editStudent(String rollNumber, String newName, String newGrade) {
+        Student student = findByRollNumber(rollNumber);
+        if (student == null) {
+            System.out.println("Student not found.");
+            return false;
+        }
+        if (newName != null && !newName.trim().isEmpty()) {
+            student.setName(newName);
+        }
+        if (newGrade != null && !newGrade.trim().isEmpty()) {
+            student.setGrade(newGrade);
+        }
+        saveToFile();
+        return true;
+    }
+
+    public void displayAll() {
+        if (students.isEmpty()) {
+            System.out.println("No students found.");
+            return;
+        }
+        System.out.println("\n----- ALL STUDENTS -----");
+        for (Student s : students) {
+            System.out.println(s);
+        }
+        System.out.println("-------------------------");
+    }
+
+    private void saveToFile() {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(FILE_NAME))) {
+            for (Student s : students) {
+                writer.println(s.toFileFormat());
+            }
+        } catch (IOException e) {
+            System.out.println("Error saving data: " + e.getMessage());
+        }
+    }
+
+    private void loadFromFile() {
+        File file = new File(FILE_NAME);
+        if (!file.exists()) return;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                Student s = Student.fromFileFormat(line);
+                if (s != null) students.add(s);
+            }
+        } catch (IOException e) {
+            System.out.println("Error loading data: " + e.getMessage());
+        }
+    }
+}
+
+public class StudentManagementApp {
+
+    private static Scanner scanner = new Scanner(System.in);
+    private static StudentManagementSystem sms = new StudentManagementSystem();
+
+    public static void main(String[] args) {
+        System.out.println("=========================================");
+        System.out.println("        STUDENT MANAGEMENT SYSTEM");
+        System.out.println("=========================================");
+
+        boolean exit = false;
+        while (!exit) {
+            printMenu();
+            int choice = readInt("Choose an option: ");
+
+            switch (choice) {
+                case 1:
+                    addStudentFlow();
+                    break;
+                case 2:
+                    editStudentFlow();
+                    break;
+                case 3:
+                    removeStudentFlow();
+                    break;
+                case 4:
+                    searchStudentFlow();
+                    break;
+                case 5:
+                    sms.displayAll();
+                    break;
+                case 6:
+                    exit = true;
+                    System.out.println("Goodbye!");
+                    break;
+                default:
+                    System.out.println("Invalid option. Please choose 1-6.");
+            }
+        }
+
+        scanner.close();
+    }
+
+    private static void printMenu() {
+        System.out.println("\n1. Add Student");
+        System.out.println("2. Edit Student");
+        System.out.println("3. Remove Student");
+        System.out.println("4. Search Student");
+        System.out.println("5. Display All Students");
+        System.out.println("6. Exit");
+    }
+
+    private static void addStudentFlow() {
+        String name = readNonEmptyString("Enter name: ");
+        String rollNumber = readNonEmptyString("Enter roll number: ");
+        System.out.print("Enter grade: ");
+        String grade = scanner.next();
+
+        if (sms.addStudent(name, rollNumber, grade)) {
+            System.out.println("Student added successfully.");
+        }
+    }
+
+    private static void editStudentFlow() {
+        String rollNumber = readNonEmptyString("Enter roll number of student to edit: ");
+        System.out.print("Enter new name (leave blank to skip): ");
+        scanner.nextLine();
+        String newName = scanner.nextLine();
+        System.out.print("Enter new grade (leave blank to skip): ");
+        String newGrade = scanner.nextLine();
+
+        if (sms.editStudent(rollNumber, newName, newGrade)) {
+            System.out.println("Student updated successfully.");
+        }
+    }
+
+    private static void removeStudentFlow() {
+        String rollNumber = readNonEmptyString("Enter roll number of student to remove: ");
+        if (sms.removeStudent(rollNumber)) {
+            System.out.println("Student removed successfully.");
+        }
+    }
+
+    private static void searchStudentFlow() {
+        String rollNumber = readNonEmptyString("Enter roll number to search: ");
+        Student s = sms.findByRollNumber(rollNumber);
+        if (s != null) {
+            System.out.println("Found: " + s);
+        } else {
+            System.out.println("Student not found.");
+        }
+    }
+
+    private static String readNonEmptyString(String prompt) {
+        String input;
+        do {
+            System.out.print(prompt);
+            input = scanner.next().trim();
+        } while (input.isEmpty());
+        return input;
+    }
+
+    private static int readInt(String prompt) {
+        System.out.print(prompt);
+        while (!scanner.hasNextInt()) {
+            System.out.println("Please enter a valid number.");
+            scanner.next();
+            System.out.print(prompt);
+        }
+        return scanner.nextInt();
+    }
+}
