@@ -1,0 +1,89 @@
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.Scanner;
+
+public class CurrencyConverter {
+
+    // Free, no-key exchange rate API
+    private static final String API_URL = "https://api.exchangerate-api.com/v4/latest/";
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+
+        System.out.println("=========================================");
+        System.out.println("            CURRENCY CONVERTER");
+        System.out.println("=========================================");
+
+        System.out.print("Enter base currency code (e.g., USD): ");
+        String baseCurrency = scanner.next().trim().toUpperCase();
+
+        System.out.print("Enter target currency code (e.g., INR): ");
+        String targetCurrency = scanner.next().trim().toUpperCase();
+
+        System.out.print("Enter amount to convert: ");
+        double amount = scanner.nextDouble();
+
+        try {
+            double rate = fetchExchangeRate(baseCurrency, targetCurrency);
+
+            if (rate == -1) {
+                System.out.println("Could not find the target currency in the rates returned.");
+            } else {
+                double convertedAmount = amount * rate;
+                System.out.println("\n----------- RESULT -----------");
+                System.out.printf("%.2f %s = %.2f %s%n", amount, baseCurrency, convertedAmount, targetCurrency);
+                System.out.println("Exchange Rate: 1 " + baseCurrency + " = " + rate + " " + targetCurrency);
+                System.out.println("-------------------------------");
+            }
+        } catch (Exception e) {
+            System.out.println("Error fetching exchange rates: " + e.getMessage());
+            System.out.println("Please check your internet connection and currency codes.");
+        }
+
+        scanner.close();
+    }
+
+    private static double fetchExchangeRate(String baseCurrency, String targetCurrency) throws Exception {
+        URL url = new URL(API_URL + baseCurrency);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+        connection.setConnectTimeout(5000);
+        connection.setReadTimeout(5000);
+
+        int responseCode = connection.getResponseCode();
+        if (responseCode != 200) {
+            throw new RuntimeException("API request failed with response code: " + responseCode);
+        }
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        StringBuilder response = new StringBuilder();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            response.append(line);
+        }
+        reader.close();
+
+        return parseRateFromJson(response.toString(), targetCurrency);
+    }
+
+    // Simple manual JSON parsing to avoid external library dependencies
+    private static double parseRateFromJson(String json, String targetCurrency) {
+        String searchKey = "\"" + targetCurrency + "\":";
+        int index = json.indexOf(searchKey);
+        if (index == -1) {
+            return -1;
+        }
+
+        int startIndex = index + searchKey.length();
+        int endIndex = startIndex;
+        while (endIndex < json.length() &&
+                (Character.isDigit(json.charAt(endIndex)) || json.charAt(endIndex) == '.')) {
+            endIndex++;
+        }
+
+        String rateStr = json.substring(startIndex, endIndex);
+        return Double.parseDouble(rateStr);
+    }
+}
